@@ -39,13 +39,15 @@ def query(searcher: Search_words, word: str) -> tuple[str]:
 
     en = res['Word']
     pron = f"{res['pronounce'][0]} 英 & {res['pronounce'][1]} 美" if res['pronounce'] != [] else ''
-    cn = re.sub('[ |\']', '', str(list(_ for _ in res['Simple-meaning']))[1 : -1].replace(',', '\n')) 
-    combo = re.sub('[ |\']', '', str(list(_[0] + re.sub('[\n| ]', '', _[1]) for _ in res['Phrase']))[1 : -1].replace(',', '\n'))
+    cn = re.sub(' +', ' ', str(list(_ for _ in res['Simple-meaning']))[1 : -1].replace(',', '\n').replace('\'', '')).replace('\n ', '\n')
+    combo = re.sub(' +', ' ', str(list(_[0] + re.sub('[\n| ]', '', _[1]) for _ in res['Phrase']))[1 : -1].replace(',', '\n').replace('\'', '')).replace('\n ', '\n')
 
     return en, cn, pron, combo
 
 def addone(cursor: sqlite3.Cursor, en: str, cn: str, pronounce: str, combo: str) -> None:
     try:
+        if cn == '':
+            raise Exception(f'英文 {en} 无对应释义, 无发音={pronounce == ""}, 无组合={combo == ""}')
         cursor.execute(f'''
             INSERT INTO WORD (EN, CN, PRONOUNCE, COMBO)
             VALUES ("{en}", "{cn}", "{pronounce}", "{combo}");
@@ -64,14 +66,14 @@ def addmany(conn: sqlite3.Connection, wordlist: list[str], delay: int = 1) -> No
         conn.commit()
         time.sleep(delay)
 
-def run(dbname: str, wordfile: str) -> None:
+def run(dbname: str, wordfile: str, delay: int = 1) -> None:
     with open(wordfile, 'r', encoding = 'utf-8') as f:
         wordlist = f.read().strip().split('\n')
 
     DATABASE_PATH = Path(__file__).parent / dbname
     conn = open_table(DATABASE_PATH)
 
-    addmany(conn, wordlist)
+    addmany(conn, wordlist, delay)
 
     conn.close()
 
@@ -82,8 +84,8 @@ if __name__ == '__main__':
 
     单词文件格式:每行一个英文单词,回车为分隔符
     '''
-    DB_NAME = 'dict.db'
-    wordfile = 'word.txt'
+    DB_NAME = 'civi.db'
+    wordfile = 'civi.txt'
     run(DB_NAME, wordfile)
     
 
